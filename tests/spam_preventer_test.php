@@ -96,6 +96,41 @@ spam_preventer_test_assert(
     spam_preventer_id_list('2, 4 4,invalid,9') === array(2, 4, 9),
     'ID lists should be normalized and deduplicated'
 );
+spam_preventer_test_assert(
+    !spam_preventer_has_original_reply_content("[quote='User' pid='123']Quoted post[/quote]"),
+    'a single attributed quote should not count as original content'
+);
+spam_preventer_test_assert(
+    !spam_preventer_has_original_reply_content(" [quote]First[/quote]\n[quote]Second [quote]nested[/quote][/quote] [b] [/b]"),
+    'multiple and nested quotes with formatting-only residue should be rejected'
+);
+spam_preventer_test_assert(
+    !spam_preventer_has_original_reply_content("[quote]Quoted[/quote]\n[color=red][i]&nbsp;[/i][/color]"),
+    'entities inside empty formatting tags should not count as original content'
+);
+spam_preventer_test_assert(
+    spam_preventer_has_original_reply_content("[quote]Quoted[/quote]\nI agree with this."),
+    'meaningful text outside a quote should be accepted'
+);
+spam_preventer_test_assert(
+    spam_preventer_has_original_reply_content("Before [quote]Quoted [quote]nested[/quote][/quote] after"),
+    'original text surrounding a nested quote should be retained'
+);
+
+$insert_reply_handler = (object)array('method' => 'insert');
+$update_reply_handler = (object)array('method' => 'update');
+spam_preventer_test_assert(
+    spam_preventer_is_new_reply($insert_reply_handler, array('tid' => 12)),
+    'an inserted post with a thread ID should be treated as a new reply'
+);
+spam_preventer_test_assert(
+    !spam_preventer_is_new_reply($update_reply_handler, array('tid' => 12)),
+    'an edited reply should not be subject to the quote-only rule'
+);
+spam_preventer_test_assert(
+    !spam_preventer_is_new_reply($insert_reply_handler, array()),
+    'a new thread should not be subject to the quote-only rule'
+);
 
 $mybb = (object)array(
     'settings' => array(

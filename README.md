@@ -1,8 +1,8 @@
 # MyBB Spam Preventer Plugin
 
-A configurable MyBB 1.8 plugin that blocks external links and recurring spam phrases for new and low-trust members without restricting established members.
+A configurable MyBB 1.8 plugin that blocks external links, recurring spam phrases, and quote-only replies for new and low-trust members without restricting established members.
 
-Version 0.1.0 focuses on the two protections expected to stop most of the current spam: server-side link rejection and administrator-managed phrase blocking.
+Version 0.2.0 adds optional quote-only reply blocking to the server-side link rejection and administrator-managed phrase protections.
 
 ## Features
 
@@ -12,6 +12,7 @@ Version 0.1.0 focuses on the two protections expected to stop most of the curren
 - Detects HTTP, HTTPS, FTP, `www`, bare-domain, MyCode, `hxxp`, and common `[dot]` link formats.
 - Allows configured trusted domains and all of their subdomains.
 - Blocks case-insensitive plain-text phrases in thread subjects and post bodies.
+- Optionally requires original text outside complete MyBB quote blocks in new replies.
 - Supports user, usergroup, and forum exemptions.
 - Always exempts administrators and forum moderators.
 - Validates through MyBB's server-side post data handler, so direct requests cannot bypass the rules.
@@ -73,6 +74,10 @@ coupon code for new users
 ```
 
 The initial release deliberately uses literal phrases instead of regular expressions. This makes rules easier to review and reduces the risk of invalid or overly broad patterns.
+
+### Quote-Only Replies
+
+Enable **Block Quote-Only Replies** to require restricted members to add meaningful original text outside quoted content. The rule handles attributed, multiple, and nested MyBB quote blocks and ignores whitespace or empty formatting tags left around them. It applies to Full Reply and Quick Reply, but not to new threads or edited posts.
 
 ### Exemptions
 

@@ -20,11 +20,11 @@ function spam_preventer_info()
 {
     return array(
         'name' => 'Spam Preventer',
-        'description' => 'Restricts external links and configured spam phrases for new and low-trust members.',
+        'description' => 'Restricts external links, configured spam phrases, and quote-only replies for new and low-trust members.',
         'website' => 'https://www.sickgaming.net',
         'author' => 'SickProdigy',
         'authorsite' => 'https://www.sickgaming.net',
-        'version' => '0.1.0',
+        'version' => '0.2.0',
         'compatibility' => '18*'
     );
 }
@@ -100,7 +100,7 @@ function spam_preventer_ensure_settings()
 function spam_preventer_settings($gid)
 {
     return array(
-        spam_preventer_setting('enabled', 'Enable Spam Preventer', 'Reject configured links and phrases for eligible low-trust members.', 'yesno', '1', 1, $gid),
+        spam_preventer_setting('enabled', 'Enable Spam Preventer', 'Reject configured links, phrases, and quote-only replies for eligible low-trust members.', 'yesno', '1', 1, $gid),
         spam_preventer_setting('restricted_groups', 'Restricted Usergroup IDs', 'Comma-separated primary or additional usergroup IDs subject to these rules. MyBB Registered is group 2 by default; on SickGaming this group is named New-Members.', 'text', '2', 2, $gid),
         spam_preventer_setting('post_threshold', 'Minimum Posts for Exemption', 'Members remain restricted below this post count. Set to 0 to disable the post-count condition.', 'numeric', '25', 3, $gid),
         spam_preventer_setting('age_days', 'Minimum Account Age for Exemption', 'Members remain restricted until their account reaches this age in days. Set to 0 to disable the account-age condition.', 'numeric', '3', 4, $gid),
@@ -108,9 +108,10 @@ function spam_preventer_settings($gid)
         spam_preventer_setting('trusted_domains', 'Trusted Domains', 'One domain per line. Subdomains are trusted automatically. Use a leading wildcard for an entire suffix, such as *.edu. Do not include a protocol or path.', 'textarea', "sickgaming.net\ngithub.com\n*.edu\n*.gov", 6, $gid),
         spam_preventer_setting('block_phrases', 'Block Spam Phrases', 'Reject subjects or messages containing configured phrases.', 'yesno', '1', 7, $gid),
         spam_preventer_setting('phrases', 'Blocked Phrases', 'Enter one case-insensitive plain-text phrase per line. Blank lines and lines beginning with # are ignored.', 'textarea', '', 8, $gid),
-        spam_preventer_setting('exempt_groups', 'Exempt Usergroup IDs', 'Comma-separated primary or additional usergroup IDs that bypass all rules. Administrators and forum moderators are always exempt.', 'text', '', 9, $gid),
-        spam_preventer_setting('exempt_users', 'Exempt User IDs', 'Comma-separated user IDs that bypass all rules.', 'text', '', 10, $gid),
-        spam_preventer_setting('exempt_forums', 'Exempt Forum IDs', 'Comma-separated forum IDs where the rules do not apply.', 'text', '', 11, $gid)
+        spam_preventer_setting('block_quote_only', 'Block Quote-Only Replies', 'Require restricted members to add meaningful original text outside complete MyBB quote blocks. Applies to new replies, including Quick Reply, but not edits or new threads.', 'yesno', '1', 9, $gid),
+        spam_preventer_setting('exempt_groups', 'Exempt Usergroup IDs', 'Comma-separated primary or additional usergroup IDs that bypass all rules. Administrators and forum moderators are always exempt.', 'text', '', 10, $gid),
+        spam_preventer_setting('exempt_users', 'Exempt User IDs', 'Comma-separated user IDs that bypass all rules.', 'text', '', 11, $gid),
+        spam_preventer_setting('exempt_forums', 'Exempt Forum IDs', 'Comma-separated forum IDs where the rules do not apply.', 'text', '', 12, $gid)
     );
 }
 
@@ -157,6 +158,64 @@ function spam_preventer_validate(&$datahandler)
         && spam_preventer_contains_blocked_phrase($content, spam_preventer_lines($mybb->settings['spam_preventer_phrases'], true))) {
         $datahandler->set_error('spam_preventer_phrase', $requirements);
     }
+
+    if (!empty($mybb->settings['spam_preventer_block_quote_only'])
+        && spam_preventer_is_new_reply($datahandler, $data)
+        && !spam_preventer_has_original_reply_content($message)) {
+        $datahandler->set_error('spam_preventer_quote_only');
+    }
+}
+
+function spam_preventer_is_new_reply($datahandler, $data)
+{
+    $method = isset($datahandler->method) ? strtolower((string)$datahandler->method) : '';
+    return $method === 'insert' && !empty($data['tid']);
+}
+
+function spam_preventer_has_original_reply_content($message)
+{
+    $message = spam_preventer_remove_complete_quotes((string)$message);
+    $message = preg_replace('~\[[^\]\r\n]*\]~u', '', $message);
+    $message = strip_tags(html_entity_decode($message, ENT_QUOTES, 'UTF-8'));
+    $message = preg_replace('~[\pZ\pC]+~u', '', $message);
+
+    return $message !== '';
+}
+
+function spam_preventer_remove_complete_quotes($message)
+{
+    if (!preg_match_all('~\[\s*(/?)\s*quote\b[^\]]*\]~iu', $message, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE)) {
+        return $message;
+    }
+
+    $depth = 0;
+    $start = null;
+    $ranges = array();
+
+    foreach ($matches as $match) {
+        $is_closing = $match[1][0] === '/';
+        $offset = $match[0][1];
+        $length = strlen($match[0][0]);
+
+        if (!$is_closing) {
+            if ($depth === 0) {
+                $start = $offset;
+            }
+            ++$depth;
+        } elseif ($depth > 0) {
+            --$depth;
+            if ($depth === 0) {
+                $ranges[] = array($start, $offset + $length - $start);
+                $start = null;
+            }
+        }
+    }
+
+    for ($index = count($ranges) - 1; $index >= 0; --$index) {
+        $message = substr_replace($message, '', $ranges[$index][0], $ranges[$index][1]);
+    }
+
+    return $message;
 }
 
 function spam_preventer_requirement_text()
