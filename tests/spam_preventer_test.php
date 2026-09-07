@@ -10,6 +10,18 @@ class SpamPreventerTestPlugins
     }
 }
 
+class SpamPreventerTestDataHandler
+{
+    public $method = 'insert';
+    public $data = array();
+    public $errors = array();
+
+    public function set_error($error, $data = '')
+    {
+        $this->errors[] = array($error, $data);
+    }
+}
+
 function is_super_admin($uid)
 {
     return $uid === 1;
@@ -131,6 +143,34 @@ spam_preventer_test_assert(
     !spam_preventer_is_new_reply($insert_reply_handler, array()),
     'a new thread should not be subject to the quote-only rule'
 );
+spam_preventer_test_assert(
+    spam_preventer_is_new_thread($insert_reply_handler, array()),
+    'an inserted handler without a thread ID should be treated as a new thread'
+);
+spam_preventer_test_assert(
+    !spam_preventer_is_new_thread($insert_reply_handler, array('tid' => 12)),
+    'an inserted handler with a thread ID should not be treated as a new thread'
+);
+spam_preventer_test_assert(
+    !spam_preventer_is_new_thread($update_reply_handler, array()),
+    'an edited thread should not trigger new-thread cooldown checks'
+);
+spam_preventer_test_assert(
+    spam_preventer_normalize_action('log') === 'log',
+    'log should be a valid rule action'
+);
+spam_preventer_test_assert(
+    spam_preventer_normalize_action('unapprove') === 'unapprove',
+    'unapprove should be a valid rule action'
+);
+spam_preventer_test_assert(
+    spam_preventer_normalize_action('ban') === 'ban',
+    'ban should be a valid rule action'
+);
+spam_preventer_test_assert(
+    spam_preventer_normalize_action('unexpected') === 'reject',
+    'unknown rule actions should fall back to reject'
+);
 
 $mybb = (object)array(
     'settings' => array(
@@ -139,10 +179,55 @@ $mybb = (object)array(
         'spam_preventer_exempt_groups' => '',
         'spam_preventer_restricted_groups' => '2',
         'spam_preventer_post_threshold' => '25',
-        'spam_preventer_age_days' => '3'
+        'spam_preventer_age_days' => '3',
+        'spam_preventer_rapid_thread_scope' => 'threads',
+        'spam_preventer_log_hits' => '0',
+        'spam_preventer_link_action' => 'reject'
     ),
     'usergroup' => array('cancp' => 0)
 );
+
+$action_handler = new SpamPreventerTestDataHandler();
+spam_preventer_apply_rule_action($action_handler, 'link', 'log', 'spam_preventer_link', array('requirements'), array());
+spam_preventer_test_assert(
+    empty($action_handler->errors),
+    'log-only actions should allow the submission'
+);
+
+$action_handler = new SpamPreventerTestDataHandler();
+spam_preventer_apply_rule_action($action_handler, 'link', 'unapprove', 'spam_preventer_link', array('requirements'), array());
+spam_preventer_test_assert(
+    empty($action_handler->errors) && isset($action_handler->data['visible']) && $action_handler->data['visible'] === 0,
+    'unapprove actions should place the submission in the moderation queue'
+);
+
+$action_handler = new SpamPreventerTestDataHandler();
+spam_preventer_apply_rule_action($action_handler, 'link', 'reject', 'spam_preventer_link', array('requirements'), array());
+spam_preventer_test_assert(
+    $action_handler->errors === array(array('spam_preventer_link', 'requirements')),
+    'reject actions should add the configured validation error'
+);
+
+spam_preventer_test_assert(
+    spam_preventer_rule_action('link') === 'reject',
+    'rule actions should be read from their matching settings'
+);
+
+spam_preventer_test_assert(
+    spam_preventer_cooldown_applies($insert_reply_handler, array()),
+    'thread-scoped cooldowns should apply to new threads'
+);
+spam_preventer_test_assert(
+    !spam_preventer_cooldown_applies($insert_reply_handler, array('tid' => 12)),
+    'thread-scoped cooldowns should not apply to new replies'
+);
+
+$mybb->settings['spam_preventer_rapid_thread_scope'] = 'all';
+spam_preventer_test_assert(
+    spam_preventer_cooldown_applies($insert_reply_handler, array('tid' => 12)),
+    'all-post cooldowns should apply to replies'
+);
+$mybb->settings['spam_preventer_rapid_thread_scope'] = 'threads';
 
 $new_member = array(
     'uid' => 10,

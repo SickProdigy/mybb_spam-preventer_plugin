@@ -1,8 +1,6 @@
 # MyBB Spam Preventer Plugin
 
-A configurable MyBB 1.8 plugin that blocks external links, recurring spam phrases, and quote-only replies for new and low-trust members without restricting established members.
-
-Version 0.2.0 adds optional quote-only reply blocking to the server-side link rejection and administrator-managed phrase protections.
+A configurable MyBB 1.8 plugin that limits common spam behavior for new and low-trust members without restricting established members.
 
 ## Features
 
@@ -13,6 +11,9 @@ Version 0.2.0 adds optional quote-only reply blocking to the server-side link re
 - Allows configured trusted domains and all of their subdomains.
 - Blocks case-insensitive plain-text phrases in thread subjects and post bodies.
 - Optionally requires original text outside complete MyBB quote blocks in new replies.
+- Supports per-rule actions: log only, reject, send to moderation queue, or ban user and reject.
+- Records optional rule-hit logs for administrator review.
+- Optionally detects rapid new-thread bursts and starts a temporary cooldown.
 - Supports user, usergroup, and forum exemptions.
 - Always exempts administrators and forum moderators.
 - Validates through MyBB's server-side post data handler, so direct requests cannot bypass the rules.
@@ -36,6 +37,11 @@ Then install and activate **Spam Preventer** under **Admin CP → Configuration 
 
 The plugin creates a **Spam Preventer** settings group under **Admin CP → Configuration → Settings**.
 
+### General
+
+- **Enable Spam Preventer**: Turns all plugin checks on or off.
+- **Log Rule Hits**: Records matched rules, selected actions, user details, forum, subject, excerpt, timestamp, and IP data in the plugin log table.
+
 ### Eligibility
 
 The default restricted group is ID `2`, MyBB's built-in Registered group. SickGaming has renamed this group `New-Members`. Change the configured ID if the restricted group on your board is different.
@@ -47,7 +53,16 @@ With the default thresholds, a member in a restricted group remains subject to t
 
 The member becomes exempt after meeting both thresholds. Setting either threshold to `0` disables that individual condition. Setting both to `0` makes the rules apply to every member of a restricted group regardless of post count or account age.
 
-### Trusted Domains
+### Rule Actions
+
+External links, blocked phrases, and quote-only replies each have their own action setting:
+
+- **Log only**: Records the match and allows the post.
+- **Reject submission**: Blocks the post with a validation message.
+- **Send to moderation queue**: Allows the submission but marks it unapproved.
+- **Ban user and reject**: Moves the member to the configured ban usergroup and blocks the post.
+
+### External Links
 
 Enter one domain per line without a protocol or path:
 
@@ -77,7 +92,17 @@ The initial release deliberately uses literal phrases instead of regular express
 
 ### Quote-Only Replies
 
-Enable **Block Quote-Only Replies** to require restricted members to add meaningful original text outside quoted content. The rule handles attributed, multiple, and nested MyBB quote blocks and ignores whitespace or empty formatting tags left around them. It applies to Full Reply and Quick Reply, but not to new threads or edited posts.
+Enable **Quote-Only Replies: Enable Rule** to require restricted members to add meaningful original text outside quoted content. The rule handles attributed, multiple, and nested MyBB quote blocks and ignores whitespace or empty formatting tags left around them. It applies to Full Reply and Quick Reply, but not to new threads or edited posts.
+
+### Rapid Threads
+
+Enable **Rapid Threads: Enable Cooldown** to temporarily restrict low-trust members who create too many new threads in a rolling window. It is disabled by default.
+
+Default values allow three successfully created non-deleted threads in 15 minutes. The next new-thread attempt starts a 12-hour cooldown. Cooldowns are stored separately and are not extended by repeated blocked attempts. The default scope blocks only new threads, but it can be changed to block all posts and threads during the cooldown.
+
+### Ban Action
+
+Set **Ban Action: Target Usergroup ID** to the usergroup used when a rule action is set to **Ban user and reject**. MyBB's default Banned group is usually ID `7`.
 
 ### Exemptions
 
@@ -87,11 +112,11 @@ Usergroup IDs, user IDs, and forum IDs accept comma-separated values. Administra
 
 This plugin complements rather than replaces MyBB's existing protections. Before using it, configure Cloudflare Turnstile or another CAPTCHA, Stop Forum Spam, group promotions, Purge Spammer, and the per-usergroup maximum-posts-per-day setting.
 
-The plugin does not duplicate MyBB's daily post limit. Planned later milestones include rolling thread limits, moderation actions, regular-expression rules, audit logging, test-only mode, and an account reconciliation tool.
+The plugin intentionally keeps matching rules simple and reviewable. Future releases may add regular-expression rules, a dedicated AdminCP log viewer, and account reconciliation tools.
 
 ## Uninstall
 
-Uninstalling removes the Spam Preventer setting group and all plugin settings. It does not alter users, usergroups, posts, threads, or unrelated MyBB configuration.
+Uninstalling removes the Spam Preventer setting group, plugin settings, rule-hit logs, and rapid-thread cooldowns. It does not alter posts, threads, unrelated MyBB configuration, or users already moved by a ban action.
 
 ## Testing
 
@@ -101,7 +126,7 @@ Run the focused standalone checks with:
 php tests/spam_preventer_test.php
 ```
 
-Production testing should use a non-staff account in the configured restricted group. Verify normal text, trusted links, external links, blocked phrases, full replies, Quick Reply inline errors, new threads, and edited posts before relying on the plugin.
+Production testing should use a non-staff account in the configured restricted group. Verify normal text, trusted links, external links, blocked phrases, full replies, Quick Reply inline errors, new threads, edited posts, moderation-queue actions, and rapid-thread cooldown behavior before relying on the plugin.
 
 ## License
 
