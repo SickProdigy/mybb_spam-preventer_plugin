@@ -171,6 +171,19 @@ spam_preventer_test_assert(
     spam_preventer_normalize_action('unexpected') === 'reject',
     'unknown rule actions should fall back to reject'
 );
+spam_preventer_test_assert(
+    in_array('Temu Coupon Code', spam_preventer_lines(spam_preventer_default_blocked_phrases(), true), true),
+    'default blocked phrases should include recurring Temu coupon spam'
+);
+spam_preventer_test_assert(
+    in_array('TℰℳU Coupon Code', spam_preventer_lines(spam_preventer_default_blocked_phrases(), true), true),
+    'default blocked phrases should include styled-character Temu coupon spam'
+);
+$default_phrase_file = trim(file_get_contents(dirname(__DIR__) . '/default-blocked-phrases.txt'));
+spam_preventer_test_assert(
+    $default_phrase_file === spam_preventer_default_blocked_phrases(),
+    'default blocked phrase file should match the plugin default setting value'
+);
 
 $mybb = (object)array(
     'settings' => array(

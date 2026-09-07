@@ -68,7 +68,7 @@ jobs:
 
           mkdir -p dist
           archive="dist/mybb-spam-preventer-$version.zip"
-          zip -X -q -r "$archive" Upload tests README.md LICENSE CHANGELOG.md
+          zip -X -q -r "$archive" Upload tests README.md LICENSE CHANGELOG.md default-blocked-phrases.txt
 
           archive_contents="$(unzip -Z1 "$archive")"
           required_entries=(
@@ -79,6 +79,7 @@ jobs:
             README.md
             LICENSE
             CHANGELOG.md
+            default-blocked-phrases.txt
           )
           for required_entry in "${required_entries[@]}"; do
             grep -F -x "$required_entry" <<< "$archive_contents" >/dev/null || {

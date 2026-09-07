@@ -6,7 +6,7 @@ A configurable MyBB 1.8 plugin that limits common spam behavior for new and low-
 
 - Applies only to configured restricted usergroups; MyBB group ID `2` is selected by default.
 - Keeps members restricted until they meet both the configured post-count and account-age thresholds.
-- Defaults to 25 posts and three days to match SickGaming's `New-Members` promotion policy.
+- Defaults to 25 posts and three days, which works well with a typical new-member promotion policy.
 - Detects HTTP, HTTPS, FTP, `www`, bare-domain, MyCode, `hxxp`, and common `[dot]` link formats.
 - Allows configured trusted domains and all of their subdomains.
 - Blocks case-insensitive plain-text phrases in thread subjects and post bodies.
@@ -44,7 +44,7 @@ The plugin creates a **Spam Preventer** settings group under **Admin CP → Conf
 
 ### Eligibility
 
-The default restricted group is ID `2`, MyBB's built-in Registered group. SickGaming has renamed this group `New-Members`. Change the configured ID if the restricted group on your board is different.
+The default restricted group is ID `2`, MyBB's built-in Registered group. If your board uses a separate new-member or probation group, enter that group ID instead.
 
 With the default thresholds, a member in a restricted group remains subject to the rules while either of these conditions is true:
 
@@ -52,6 +52,8 @@ With the default thresholds, a member in a restricted group remains subject to t
 - The account is younger than three days.
 
 The member becomes exempt after meeting both thresholds. Setting either threshold to `0` disables that individual condition. Setting both to `0` makes the rules apply to every member of a restricted group regardless of post count or account age.
+
+On SickGaming, Spam Preventer is used alongside MyBB's built-in group promotions. New accounts start in a `New-Member` group, and MyBB promotes them to the regular `Member` group after they have at least 25 posts and their account is at least three days old. Spam Preventer itself does not perform that promotion; it is configured to apply only to the `New-Member` group, so members stop being filtered once MyBB moves them out of that group.
 
 ### Rule Actions
 
@@ -76,11 +78,11 @@ github.com
 Subdomains are trusted automatically, so `cdn.sickgaming.net` is covered by `sickgaming.net`.
 A leading wildcard trusts all domains under a suffix. For example, `*.edu` allows
 `mit.edu` and `engineering.mit.edu`, but not `example.education`. The default list
-allows SickGaming, GitHub, `.edu` domains, and `.gov` domains.
+allows your own trusted site domains, GitHub, `.edu` domains, and `.gov` domains.
 
 ### Blocked Phrases
 
-Enter one case-insensitive plain-text phrase per line. Blank lines and lines beginning with `#` are ignored:
+Enter one case-insensitive plain-text phrase per line. Blank lines and lines beginning with `#` are ignored. The shipped defaults are tracked in [`default-blocked-phrases.txt`](default-blocked-phrases.txt) so the starter list can be reviewed outside the AdminCP.
 
 ```text
 # Recurring coupon spam

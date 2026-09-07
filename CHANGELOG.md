@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.1 - 2026-09-07
+
+- Added a starter blocked-phrase list for recurring coupon, discount, promo, and referral spam campaigns.
+- Added `default-blocked-phrases.txt` so the shipped phrase list can be reviewed outside the AdminCP.
+- Included the default phrase list in release packages.
+- Clarified that SickGaming's new-member promotion flow is handled by MyBB group promotions, not by Spam Preventer itself.
+- Kept AdminCP setting descriptions generic for use on other boards.
+
 ## 1.0.0 - 2026-09-07
 
 - Added per-rule actions for external links, blocked phrases, and quote-only replies: log only, reject, send to moderation queue, or ban user and reject.

@@ -24,7 +24,7 @@ function spam_preventer_info()
         'website' => 'https://www.sickgaming.net',
         'author' => 'SickProdigy',
         'authorsite' => 'https://www.sickgaming.net',
-        'version' => '1.0.0',
+        'version' => '1.0.1',
         'compatibility' => '18*'
     );
 }
@@ -149,7 +149,7 @@ function spam_preventer_settings($gid)
     return array(
         spam_preventer_setting('enabled', 'General: Enable Spam Preventer', 'Apply configured protections to eligible low-trust members.', 'yesno', '1', 10, $gid),
         spam_preventer_setting('log_hits', 'General: Log Rule Hits', 'Record each matched rule, selected action, user, forum, subject, and a short excerpt.', 'yesno', '1', 20, $gid),
-        spam_preventer_setting('restricted_groups', 'Eligibility: Restricted Usergroup IDs', 'Comma-separated primary or additional usergroup IDs subject to these rules. MyBB Registered is group 2 by default; on SickGaming this group is named New-Members.', 'text', '2', 110, $gid),
+        spam_preventer_setting('restricted_groups', 'Eligibility: Restricted Usergroup IDs', 'Comma-separated primary or additional usergroup IDs subject to these rules. MyBB Registered is group 2 by default. If your board uses a separate new-member group, enter that group ID here.', 'text', '2', 110, $gid),
         spam_preventer_setting('post_threshold', 'Eligibility: Minimum Posts for Exemption', 'Members remain restricted below this post count. Set to 0 to disable the post-count condition.', 'numeric', '25', 120, $gid),
         spam_preventer_setting('age_days', 'Eligibility: Minimum Account Age for Exemption', 'Members remain restricted until their account reaches this age in days. Set to 0 to disable the account-age condition.', 'numeric', '3', 130, $gid),
         spam_preventer_setting('block_links', 'External Links: Enable Rule', 'Check posts and threads for links that are not on the trusted-domain list.', 'yesno', '1', 210, $gid),
@@ -157,7 +157,7 @@ function spam_preventer_settings($gid)
         spam_preventer_setting('trusted_domains', 'External Links: Trusted Domains', 'One domain per line. Subdomains are trusted automatically. Use a leading wildcard for an entire suffix, such as *.edu. Do not include a protocol or path.', 'textarea', "sickgaming.net\ngithub.com\n*.edu\n*.gov", 230, $gid),
         spam_preventer_setting('block_phrases', 'Spam Phrases: Enable Rule', 'Check subjects and messages for configured phrases.', 'yesno', '1', 310, $gid),
         spam_preventer_setting('phrase_action', 'Spam Phrases: Action', 'Choose what happens when this rule matches.', spam_preventer_action_options(), 'reject', 320, $gid),
-        spam_preventer_setting('phrases', 'Spam Phrases: Blocked Phrases', 'Enter one case-insensitive plain-text phrase per line. Blank lines and lines beginning with # are ignored.', 'textarea', '', 330, $gid),
+        spam_preventer_setting('phrases', 'Spam Phrases: Blocked Phrases', 'Enter one case-insensitive plain-text phrase per line. Blank lines and lines beginning with # are ignored.', 'textarea', spam_preventer_default_blocked_phrases(), 330, $gid),
         spam_preventer_setting('block_quote_only', 'Quote-Only Replies: Enable Rule', 'Require restricted members to add meaningful original text outside complete MyBB quote blocks. Applies to new replies, including Quick Reply, but not edits or new threads.', 'yesno', '1', 410, $gid),
         spam_preventer_setting('quote_action', 'Quote-Only Replies: Action', 'Choose what happens when this rule matches.', spam_preventer_action_options(), 'reject', 420, $gid),
         spam_preventer_setting('rapid_threads', 'Rapid Threads: Enable Cooldown', 'Temporarily restrict low-trust members who create too many new threads in a rolling window. Disabled by default.', 'yesno', '0', 510, $gid),
@@ -175,6 +175,37 @@ function spam_preventer_settings($gid)
 function spam_preventer_action_options()
 {
     return "select\nlog=Log only\nreject=Reject submission\nunapprove=Send to moderation queue\nban=Ban user and reject";
+}
+
+function spam_preventer_default_blocked_phrases()
+{
+    return implode("\n", array(
+        'Ultrahuman coupon Code',
+        'Ultrahuman Discount Code',
+        'Ultrahuman promo code',
+        'Ultrahuman referral code',
+        'Lemfi coupon code',
+        'Lemfi discount code',
+        'Lemfi promo code',
+        'Lemfi referral code',
+        'Temu Coupon Code',
+        'Temu Gutscheincode 30%',
+        'Temu Gutscheincode 100',
+        'Temu Gutscheincode for New Customers',
+        'Temu Gutscheincode For New Users',
+        'Temu Rabattcode für Neukunden',
+        'Temu Gutschein für Neukunden',
+        'SHEIN Coupon Code',
+        'Ibotta Referral Code',
+        'Ibotta Promo Code',
+        'Ibotta Invite Code',
+        'Ibotta Registration Bonus',
+        'Ibotta Referral Program',
+        'Insta360 Promo Code',
+        'TℰℳU Coupon Code',
+        'Apollo Neuro Coupon',
+        'SHEIN Discount Code'
+    ));
 }
 
 function spam_preventer_setting($name, $title, $description, $optionscode, $value, $disporder, $gid)
@@ -493,7 +524,7 @@ function spam_preventer_add_quick_reply_asset($contents)
         return $contents;
     }
 
-    $asset_url = rtrim($mybb->asset_url, '/') . '/jscripts/spam-preventer/quick-reply-errors.js?ver=100';
+    $asset_url = rtrim($mybb->asset_url, '/') . '/jscripts/spam-preventer/quick-reply-errors.js?ver=101';
     $script = '<script type="text/javascript" src="' . htmlspecialchars_uni($asset_url) . '"></script>';
 
     return preg_replace('~</body>~i', $script . '</body>', $contents, 1);
