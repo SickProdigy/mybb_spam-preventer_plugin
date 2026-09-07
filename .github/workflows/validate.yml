@@ -66,14 +66,13 @@ jobs:
 
           mkdir -p dist
           archive="dist/mybb-spam-preventer-$version.zip"
-          zip -X -q -r "$archive" Upload tests README.md LICENSE CHANGELOG.md default-blocked-phrases.txt
+          zip -X -q -r "$archive" Upload README.md LICENSE CHANGELOG.md default-blocked-phrases.txt
 
           archive_contents="$(unzip -Z1 "$archive")"
           required_entries=(
             Upload/inc/plugins/spam_preventer.php
             Upload/inc/languages/english/spam_preventer.lang.php
             Upload/jscripts/spam-preventer/quick-reply-errors.js
-            tests/spam_preventer_test.php
             README.md
             LICENSE
             CHANGELOG.md
