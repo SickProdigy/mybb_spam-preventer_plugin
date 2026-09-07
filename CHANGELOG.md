@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2 - 2026-09-07
+
+- Excluded development tests from release packages so downloadable archives contain only install files, documentation, license, changelog, and default phrase data.
+
 ## 1.0.1 - 2026-09-07
 
 - Added a starter blocked-phrase list for recurring coupon, discount, promo, and referral spam campaigns.

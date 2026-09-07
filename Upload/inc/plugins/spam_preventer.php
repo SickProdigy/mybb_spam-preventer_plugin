@@ -24,7 +24,7 @@ function spam_preventer_info()
         'website' => 'https://www.sickgaming.net',
         'author' => 'SickProdigy',
         'authorsite' => 'https://www.sickgaming.net',
-        'version' => '1.0.1',
+        'version' => '1.0.2',
         'compatibility' => '18*'
     );
 }
@@ -524,7 +524,7 @@ function spam_preventer_add_quick_reply_asset($contents)
         return $contents;
     }
 
-    $asset_url = rtrim($mybb->asset_url, '/') . '/jscripts/spam-preventer/quick-reply-errors.js?ver=101';
+    $asset_url = rtrim($mybb->asset_url, '/') . '/jscripts/spam-preventer/quick-reply-errors.js?ver=102';
     $script = '<script type="text/javascript" src="' . htmlspecialchars_uni($asset_url) . '"></script>';
 
     return preg_replace('~</body>~i', $script . '</body>', $contents, 1);
