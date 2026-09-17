@@ -285,4 +285,32 @@ spam_preventer_test_assert(
     'forum moderators should be exempt'
 );
 
+$plugin_source = file_get_contents(dirname(__DIR__) . '/Upload/inc/plugins/spam_preventer.php');
+$admin_source = file_get_contents(dirname(__DIR__) . '/Upload/admin/modules/tools/spam_preventer_logs.php');
+$admin_language = file_get_contents(dirname(__DIR__) . '/Upload/inc/languages/english/admin/spam_preventer.lang.php');
+spam_preventer_test_assert(
+    strpos($plugin_source, "'version' => '1.1.0'") !== false,
+    'plugin metadata should report version 1.1.0'
+);
+spam_preventer_test_assert(
+    strpos($plugin_source, "admin_tools_menu_logs") !== false
+        && strpos($plugin_source, "admin_tools_permissions") !== false,
+    'the plugin should register the native Tools log menu and permission hooks'
+);
+spam_preventer_test_assert(
+    strpos($admin_source, "verify_post_check") !== false
+        && strpos($admin_source, "draw_admin_pagination") !== false
+        && strpos($admin_source, "escape_string_like") !== false,
+    'the log viewer should protect mutations and bound filtered output'
+);
+spam_preventer_test_assert(
+    strpos($admin_source, "htmlspecialchars_uni") !== false
+        && strpos($admin_source, "log_admin_action") !== false,
+    'the log viewer should escape stored content and audit destructive actions'
+);
+spam_preventer_test_assert(
+    strpos($admin_language, "can_manage_spam_preventer_logs") !== false,
+    'the log viewer should expose a dedicated administrator permission'
+);
+
 echo "Spam Preventer tests passed.\n";

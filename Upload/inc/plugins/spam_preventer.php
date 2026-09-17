@@ -15,18 +15,52 @@ if (!defined('IN_MYBB')) {
 $plugins->add_hook('datahandler_post_validate_post', 'spam_preventer_validate');
 $plugins->add_hook('datahandler_post_validate_thread', 'spam_preventer_validate');
 $plugins->add_hook('pre_output_page', 'spam_preventer_add_quick_reply_asset');
+$plugins->add_hook('admin_tools_action_handler', 'spam_preventer_admin_tools_action_handler');
+$plugins->add_hook('admin_tools_menu_logs', 'spam_preventer_admin_tools_menu_logs');
+$plugins->add_hook('admin_tools_permissions', 'spam_preventer_admin_tools_permissions');
 
 function spam_preventer_info()
 {
     return array(
         'name' => 'Spam Preventer',
         'description' => 'Restricts external links, configured spam phrases, and quote-only replies for new and low-trust members.',
-        'website' => 'https://www.sickgaming.net',
+        'website' => 'https://github.com/sickprodigy/mybb_spam-preventer_plugin',
         'author' => 'SickProdigy',
         'authorsite' => 'https://www.sickgaming.net',
-        'version' => '1.0.2',
+        'version' => '1.1.0',
         'compatibility' => '18*'
     );
+}
+
+function spam_preventer_admin_tools_action_handler(&$actions)
+{
+    global $lang;
+
+    $lang->load('spam_preventer');
+    $actions['spam_preventer_logs'] = array(
+        'active' => 'spam_preventer_logs',
+        'file' => 'spam_preventer_logs.php'
+    );
+}
+
+function spam_preventer_admin_tools_menu_logs(&$sub_menu)
+{
+    global $lang;
+
+    $lang->load('spam_preventer');
+    $sub_menu['70'] = array(
+        'id' => 'spam_preventer_logs',
+        'title' => $lang->spam_preventer_logs,
+        'link' => 'index.php?module=tools-spam_preventer_logs'
+    );
+}
+
+function spam_preventer_admin_tools_permissions(&$admin_permissions)
+{
+    global $lang;
+
+    $lang->load('spam_preventer');
+    $admin_permissions['spam_preventer_logs'] = $lang->can_manage_spam_preventer_logs;
 }
 
 function spam_preventer_install()

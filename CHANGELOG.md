@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0 - 2026-09-16
+
+- Add a dedicated Spam Preventer log viewer under Tools & Maintenance -> Logs.
+- Add bounded pagination and filters for user, forum, rule, action, and date.
+- Add safe record details, IP display, selected deletion, and age-based pruning.
+- Protect destructive log operations with Admin CP permissions, confirmation, post-key validation, and administrator logging.
+- Point the plugin metadata website at the public source repository.
+
 ## 1.0.2 - 2026-09-07
 
 - Excluded development tests from release packages so downloadable archives contain only install files, documentation, license, changelog, and default phrase data.

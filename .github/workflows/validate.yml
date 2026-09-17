@@ -70,7 +70,9 @@ jobs:
 
           archive_contents="$(unzip -Z1 "$archive")"
           required_entries=(
+            Upload/admin/modules/tools/spam_preventer_logs.php
             Upload/inc/plugins/spam_preventer.php
+            Upload/inc/languages/english/admin/spam_preventer.lang.php
             Upload/inc/languages/english/spam_preventer.lang.php
             Upload/jscripts/spam-preventer/quick-reply-errors.js
             README.md

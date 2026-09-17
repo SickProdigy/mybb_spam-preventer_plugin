@@ -13,6 +13,7 @@ A configurable MyBB 1.8 plugin that limits common spam behavior for new and low-
 - Optionally requires original text outside complete MyBB quote blocks in new replies.
 - Supports per-rule actions: log only, reject, send to moderation queue, or ban user and reject.
 - Records optional rule-hit logs for administrator review.
+- Provides a permission-controlled, filterable Spam Preventer log viewer under Tools & Maintenance.
 - Optionally detects rapid new-thread bursts and starts a temporary cooldown.
 - Supports user, usergroup, and forum exemptions.
 - Always exempts administrators and forum moderators.
@@ -28,6 +29,8 @@ Copy the contents of `Upload/` into the MyBB installation root:
 ```text
 Upload/inc/plugins/spam_preventer.php -> public_html/inc/plugins/spam_preventer.php
 Upload/inc/languages/english/spam_preventer.lang.php -> public_html/inc/languages/english/spam_preventer.lang.php
+Upload/inc/languages/english/admin/spam_preventer.lang.php -> public_html/inc/languages/english/admin/spam_preventer.lang.php
+Upload/admin/modules/tools/spam_preventer_logs.php -> public_html/admin/modules/tools/spam_preventer_logs.php
 Upload/jscripts/spam-preventer/quick-reply-errors.js -> public_html/jscripts/spam-preventer/quick-reply-errors.js
 ```
 
@@ -41,6 +44,14 @@ The plugin creates a **Spam Preventer** settings group under **Admin CP → Conf
 
 - **Enable Spam Preventer**: Turns all plugin checks on or off.
 - **Log Rule Hits**: Records matched rules, selected actions, user details, forum, subject, excerpt, timestamp, and IP data in the plugin log table.
+
+### Logs
+
+Administrators with the **Can view and prune Spam Preventer logs?** permission can open **Admin CP -> Tools & Maintenance -> Logs -> Spam Preventer Logs**. The viewer reads the existing dedicated log table and supports user, forum, rule, action, date, and page-size filters. Record details display stored metadata and the complete stored excerpt as escaped text.
+
+Selected records can be deleted with explicit confirmation. The Prune Logs tab can permanently remove records older than 1-3650 days; both operations require a valid Admin CP post key and are recorded in the administrator log. Log pruning does not alter users, posts, or cooldowns.
+
+The dedicated viewer is separate from MyBB's built-in Spam Log. Spam Preventer does not currently duplicate its records into MyBB's core `spamlog` table.
 
 ### Eligibility
 
@@ -114,7 +125,7 @@ Usergroup IDs, user IDs, and forum IDs accept comma-separated values. Administra
 
 This plugin complements rather than replaces MyBB's existing protections. Before using it, configure Cloudflare Turnstile or another CAPTCHA, Stop Forum Spam, group promotions, Purge Spammer, and the per-usergroup maximum-posts-per-day setting.
 
-The plugin intentionally keeps matching rules simple and reviewable. Future releases may add regular-expression rules, a dedicated AdminCP log viewer, and account reconciliation tools.
+The plugin intentionally keeps matching rules simple and reviewable. Future releases may add regular-expression rules and account reconciliation tools.
 
 ## Uninstall
 
