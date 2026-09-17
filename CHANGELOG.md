@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.1 - 2026-09-16
+
+- Fix rule-hit logging with packed IP addresses so matched submissions no longer trigger a database error.
+- Detect MyCode URL targets that MyBB makes clickable even when they use a single-label destination.
+- Explain when a restricted link was found only inside quoted reply content.
+
 ## 1.1.0 - 2026-09-16
 
 - Add a dedicated Spam Preventer log viewer under Tools & Maintenance -> Logs.

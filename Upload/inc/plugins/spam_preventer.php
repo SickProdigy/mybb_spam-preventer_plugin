@@ -27,7 +27,7 @@ function spam_preventer_info()
         'website' => 'https://github.com/sickprodigy/mybb_spam-preventer_plugin',
         'author' => 'SickProdigy',
         'authorsite' => 'https://www.sickgaming.net',
-        'version' => '1.1.0',
+        'version' => '1.1.1',
         'compatibility' => '18*'
     );
 }
@@ -294,9 +294,11 @@ function spam_preventer_validate(&$datahandler)
         }
     }
 
+    $trusted_domains = spam_preventer_lines($mybb->settings['spam_preventer_trusted_domains']);
     if (!empty($mybb->settings['spam_preventer_block_links'])
-        && spam_preventer_contains_untrusted_link($content, spam_preventer_lines($mybb->settings['spam_preventer_trusted_domains']))) {
-        spam_preventer_apply_rule_action($datahandler, 'link', spam_preventer_rule_action('link'), 'spam_preventer_link', array($requirements), $data);
+        && spam_preventer_contains_untrusted_link($content, $trusted_domains)) {
+        $link_error = spam_preventer_link_error_key($subject, $message, $trusted_domains, spam_preventer_is_new_reply($datahandler, $data));
+        spam_preventer_apply_rule_action($datahandler, 'link', spam_preventer_rule_action('link'), $link_error, array($requirements), $data);
     }
 
     if (!empty($mybb->settings['spam_preventer_block_phrases'])
@@ -392,6 +394,8 @@ function spam_preventer_log_hit($rule, $action, $data)
     $message = isset($data['message']) ? (string)$data['message'] : '';
     $message = strip_tags($message);
     $message = preg_replace('~\s+~', ' ', $message);
+    $mybb->binary_fields['spam_preventer_logs']['ipaddress'] = true;
+    $packed_ip = isset($session->packedip) ? $session->packedip : my_inet_pton(get_ip());
     $db->insert_query('spam_preventer_logs', array(
         'uid' => isset($mybb->user['uid']) ? (int)$mybb->user['uid'] : 0,
         'username' => $db->escape_string(isset($mybb->user['username']) ? $mybb->user['username'] : ''),
@@ -401,7 +405,7 @@ function spam_preventer_log_hit($rule, $action, $data)
         'subject' => $db->escape_string(my_substr(isset($data['subject']) ? (string)$data['subject'] : '', 0, 120)),
         'excerpt' => $db->escape_string(my_substr($message, 0, 255)),
         'dateline' => TIME_NOW,
-        'ipaddress' => isset($session->packedip) ? $db->escape_binary($session->packedip) : ''
+        'ipaddress' => $packed_ip
     ));
 }
 
@@ -617,6 +621,16 @@ function spam_preventer_should_restrict($user, $fid)
 function spam_preventer_contains_untrusted_link($content, $trusted_domains)
 {
     $content = spam_preventer_normalize_link_text($content);
+    if (preg_match_all('~\[\s*url(?:\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\]\s]*)))?\s*\](.*?)\[\s*/\s*url\s*\]~isu', $content, $mycode_links, PREG_SET_ORDER)) {
+        foreach ($mycode_links as $link) {
+            $candidate = $link[1] !== '' ? $link[1] : ($link[2] !== '' ? $link[2] : ($link[3] !== '' ? $link[3] : $link[4]));
+            $host = spam_preventer_link_host($candidate);
+            if ($host === '' || !spam_preventer_domain_is_trusted($host, $trusted_domains)) {
+                return true;
+            }
+        }
+    }
+
     $pattern = '~(?<![\pL\pN_])(?:(?:https?|ftp)://[^\s<>\[\]"\']+|www\.[^\s<>\[\]"\']+|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}(?::\d{1,5})?(?:/[^\s<>\[\]"\']*)?)~iu';
 
     if (!preg_match_all($pattern, $content, $matches)) {
@@ -631,6 +645,20 @@ function spam_preventer_contains_untrusted_link($content, $trusted_domains)
     }
 
     return false;
+}
+
+function spam_preventer_link_error_key($subject, $message, $trusted_domains, $is_new_reply)
+{
+    if (!$is_new_reply || spam_preventer_contains_untrusted_link($subject, $trusted_domains)) {
+        return 'spam_preventer_link';
+    }
+
+    $message_without_quotes = spam_preventer_remove_complete_quotes($message);
+    if (!spam_preventer_contains_untrusted_link($message_without_quotes, $trusted_domains)) {
+        return 'spam_preventer_quoted_link';
+    }
+
+    return 'spam_preventer_link';
 }
 
 function spam_preventer_normalize_link_text($content)

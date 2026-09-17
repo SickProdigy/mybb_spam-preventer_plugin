@@ -75,6 +75,8 @@ External links, blocked phrases, and quote-only replies each have their own acti
 - **Send to moderation queue**: Allows the submission but marks it unapproved.
 - **Ban user and reject**: Moves the member to the configured ban usergroup and blocks the post.
 
+Link checks inspect MyCode URL targets before MyBB renders them, including single-label targets such as `[url=example]`. In replies, links inside quoted posts remain subject to the rule; when the restricted link appears only inside a quote, the validation message identifies the quote as the source so the member can remove it.
+
 ### External Links
 
 Enter one domain per line without a protocol or path:

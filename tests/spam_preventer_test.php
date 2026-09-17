@@ -86,6 +86,18 @@ spam_preventer_test_assert(
     'a MyCode URL should be blocked'
 );
 spam_preventer_test_assert(
+    spam_preventer_contains_untrusted_link('[url=avasv]Bypass[/url]', $trusted),
+    'a single-label MyCode URL should be blocked before MyBB makes it clickable'
+);
+spam_preventer_test_assert(
+    spam_preventer_contains_untrusted_link('[url]avasv[/url]', $trusted),
+    'a single-label URL used as MyCode content should be blocked'
+);
+spam_preventer_test_assert(
+    !spam_preventer_contains_untrusted_link('[url=https://sickgaming.net/forums]Forum[/url]', $trusted),
+    'a trusted MyCode URL should be allowed'
+);
+spam_preventer_test_assert(
     spam_preventer_contains_untrusted_link('Try hxxps://example[dot]com/deal', $trusted),
     'an obfuscated URL should be blocked'
 );
@@ -127,6 +139,14 @@ spam_preventer_test_assert(
 spam_preventer_test_assert(
     spam_preventer_has_original_reply_content("Before [quote]Quoted [quote]nested[/quote][/quote] after"),
     'original text surrounding a nested quote should be retained'
+);
+spam_preventer_test_assert(
+    spam_preventer_link_error_key('', "[quote]Visit https://example.com[/quote]\nThanks", $trusted, true) === 'spam_preventer_quoted_link',
+    'a reply whose only external link is quoted should receive the quoted-link error'
+);
+spam_preventer_test_assert(
+    spam_preventer_link_error_key('', "[quote]Visit https://example.com[/quote]\nhttps://another.example", $trusted, true) === 'spam_preventer_link',
+    'an original external link should receive the standard link error'
 );
 
 $insert_reply_handler = (object)array('method' => 'insert');
@@ -289,13 +309,19 @@ $plugin_source = file_get_contents(dirname(__DIR__) . '/Upload/inc/plugins/spam_
 $admin_source = file_get_contents(dirname(__DIR__) . '/Upload/admin/modules/tools/spam_preventer_logs.php');
 $admin_language = file_get_contents(dirname(__DIR__) . '/Upload/inc/languages/english/admin/spam_preventer.lang.php');
 spam_preventer_test_assert(
-    strpos($plugin_source, "'version' => '1.1.0'") !== false,
-    'plugin metadata should report version 1.1.0'
+    strpos($plugin_source, "'version' => '1.1.1'") !== false,
+    'plugin metadata should report version 1.1.1'
 );
 spam_preventer_test_assert(
     strpos($plugin_source, "admin_tools_menu_logs") !== false
         && strpos($plugin_source, "admin_tools_permissions") !== false,
     'the plugin should register the native Tools log menu and permission hooks'
+);
+spam_preventer_test_assert(
+    strpos($plugin_source, "binary_fields['spam_preventer_logs']['ipaddress'] = true") !== false
+        && strpos($plugin_source, "'ipaddress' => \$packed_ip") !== false
+        && strpos($plugin_source, "escape_binary(\$session->packedip)") === false,
+    'log inserts should let MyBB encode the registered binary IP field'
 );
 spam_preventer_test_assert(
     strpos($admin_source, "verify_post_check") !== false

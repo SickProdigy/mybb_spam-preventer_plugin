@@ -1,5 +1,6 @@
 <?php
 $l['postdata_spam_preventer_link'] = 'Only approved links are allowed until you have {1}. Please remove any other links and try again.';
+$l['postdata_spam_preventer_quoted_link'] = 'A quoted post contains a link that is not approved for your account yet. Please remove the link or the quoted section and try again. Links are restricted until you have {1}.';
 $l['postdata_spam_preventer_phrase'] = 'Your post contains wording that is blocked by the spam filter. This restriction applies until you have {1}. Please revise it and try again.';
 $l['postdata_spam_preventer_quote_only'] = 'Please add your own response outside the quoted text before posting.';
 $l['postdata_spam_preventer_rapid_threads_active'] = 'You created too many new threads in a short time. You can post again after {1}.';
