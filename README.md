@@ -66,6 +66,19 @@ The member becomes exempt after meeting both thresholds. Setting either threshol
 
 On SickGaming, Spam Preventer is used alongside MyBB's built-in group promotions. New accounts start in a `New-Member` group, and MyBB promotes them to the regular `Member` group after they have at least 25 posts and their account is at least three days old. Spam Preventer itself does not perform that promotion; it is configured to apply only to the `New-Member` group, so members stop being filtered once MyBB moves them out of that group.
 
+### New-Member Attachment Moderation
+
+SickGaming also enables MyBB's built-in **Attachments require moderation** permission for the `New-Member` group. New members can still create normal threads and replies, while their uploaded files wait for staff approval. This adds protection against spammy or malicious attachments alongside Spam Preventer's link and phrase checks.
+
+To use the same approach on your board:
+
+- Enable **Attachments require moderation** in the new-member group's permissions, and allow uploads only if your community needs them.
+- Keep attachment quotas and per-file size limits conservative, and disable executable or browser-rendered attachment types your community does not need.
+- Have staff review the attachment moderation queue regularly.
+- Use MyBB group promotions to move established users into a regular member group with the intended attachment permissions. SickGaming uses the 25-post and three-day requirements described above.
+
+MyBB manages attachment permissions and group promotions separately from Spam Preventer. Meeting the plugin's thresholds or receiving a Spam Preventer group exemption does not itself remove attachment moderation; check the destination group's permissions and any additional groups too.
+
 ### Rule Actions
 
 External links, blocked phrases, and quote-only replies each have their own action setting:
