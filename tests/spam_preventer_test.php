@@ -121,6 +121,13 @@ spam_preventer_test_assert(
     'ID lists should be normalized and deduplicated'
 );
 spam_preventer_test_assert(
+    spam_preventer_group_options_code(array(
+        array('gid' => 2, 'title' => 'New-Member'),
+        array('gid' => 8, 'title' => '<b>VIP=Gold</b>')
+    )) === "checkbox\n2=New-Member (ID 2)\n8=VIP-Gold (ID 8)",
+    'usergroup checkbox options should show safe names and IDs'
+);
+spam_preventer_test_assert(
     !spam_preventer_has_original_reply_content("[quote='User' pid='123']Quoted post[/quote]"),
     'a single attributed quote should not count as original content'
 );
@@ -274,6 +281,15 @@ spam_preventer_test_assert(
     'a member below 25 posts should remain restricted'
 );
 
+$new_member['additionalgroups'] = '8';
+$mybb->settings['spam_preventer_exempt_groups'] = '8';
+spam_preventer_test_assert(
+    !spam_preventer_should_restrict($new_member, 5),
+    'an exempt additional group should override a restricted primary group'
+);
+$new_member['additionalgroups'] = '';
+$mybb->settings['spam_preventer_exempt_groups'] = '';
+
 $new_member['postnum'] = 25;
 $new_member['regdate'] = TIME_NOW - (2 * 86400);
 spam_preventer_test_assert(
@@ -309,8 +325,8 @@ $plugin_source = file_get_contents(dirname(__DIR__) . '/Upload/inc/plugins/spam_
 $admin_source = file_get_contents(dirname(__DIR__) . '/Upload/admin/modules/tools/spam_preventer_logs.php');
 $admin_language = file_get_contents(dirname(__DIR__) . '/Upload/inc/languages/english/admin/spam_preventer.lang.php');
 spam_preventer_test_assert(
-    strpos($plugin_source, "'version' => '1.1.1'") !== false,
-    'plugin metadata should report version 1.1.1'
+    strpos($plugin_source, "'version' => '1.1.2'") !== false,
+    'plugin metadata should report version 1.1.2'
 );
 spam_preventer_test_assert(
     strpos($plugin_source, "admin_tools_menu_logs") !== false

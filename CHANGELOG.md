@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.2 - 2026-10-03
+
+- Replace the exempt-usergroup ID text field with named usergroup checkboxes that show each group ID.
+- Preserve the existing comma-separated setting value and primary-or-additional-group bypass behavior.
+- Add regression coverage for generated group options and additional-group precedence.
+
 ## 1.1.1 - 2026-09-16
 
 - Fix rule-hit logging with packed IP addresses so matched submissions no longer trigger a database error.

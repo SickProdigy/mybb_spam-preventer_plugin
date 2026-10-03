@@ -27,7 +27,7 @@ function spam_preventer_info()
         'website' => 'https://github.com/sickprodigy/mybb_spam-preventer_plugin',
         'author' => 'SickProdigy',
         'authorsite' => 'https://www.sickgaming.net',
-        'version' => '1.1.1',
+        'version' => '1.1.2',
         'compatibility' => '18*'
     );
 }
@@ -200,7 +200,7 @@ function spam_preventer_settings($gid)
         spam_preventer_setting('rapid_thread_cooldown', 'Rapid Threads: Cooldown Hours', 'Temporary restriction duration after the limit is exceeded.', 'numeric', '12', 540, $gid),
         spam_preventer_setting('rapid_thread_scope', 'Rapid Threads: Cooldown Scope', 'Choose whether cooldown blocks only new threads or all posts.', "select\nthreads=New threads only\nall=All posts and threads", 'threads', 550, $gid),
         spam_preventer_setting('ban_group', 'Ban Action: Target Usergroup ID', 'Usergroup assigned when a rule action is set to Ban user. MyBB Banned is usually group 7.', 'numeric', '7', 610, $gid),
-        spam_preventer_setting('exempt_groups', 'Exemptions: Exempt Usergroup IDs', 'Comma-separated primary or additional usergroup IDs that bypass all rules. Administrators and forum moderators are always exempt.', 'text', '', 710, $gid),
+        spam_preventer_setting('exempt_groups', 'Exemptions: Exempt Usergroups', 'Select any primary or additional usergroups that bypass all rules. Each option shows the group name and ID. Administrators and forum moderators are always exempt.', spam_preventer_usergroup_options(), '', 710, $gid),
         spam_preventer_setting('exempt_users', 'Exemptions: Exempt User IDs', 'Comma-separated user IDs that bypass all rules.', 'text', '', 720, $gid),
         spam_preventer_setting('exempt_forums', 'Exemptions: Exempt Forum IDs', 'Comma-separated forum IDs where the rules do not apply.', 'text', '', 730, $gid)
     );
@@ -209,6 +209,44 @@ function spam_preventer_settings($gid)
 function spam_preventer_action_options()
 {
     return "select\nlog=Log only\nreject=Reject submission\nunapprove=Send to moderation queue\nban=Ban user and reject";
+}
+
+function spam_preventer_usergroup_options()
+{
+    global $db;
+
+    $groups = array();
+    $query = $db->simple_select('usergroups', 'gid,title', '', array(
+        'order_by' => 'disporder, title'
+    ));
+
+    while ($group = $db->fetch_array($query)) {
+        $groups[] = $group;
+    }
+
+    return spam_preventer_group_options_code($groups);
+}
+
+function spam_preventer_group_options_code($groups)
+{
+    $options = array('checkbox');
+
+    foreach ($groups as $group) {
+        $gid = isset($group['gid']) ? (int)$group['gid'] : 0;
+        if ($gid < 1) {
+            continue;
+        }
+
+        $title = isset($group['title']) ? strip_tags($group['title']) : '';
+        $title = trim(str_replace(array("\r", "\n", '='), array(' ', ' ', '-'), $title));
+        if ($title === '') {
+            $title = 'Unnamed usergroup';
+        }
+
+        $options[] = $gid . '=' . $title . ' (ID ' . $gid . ')';
+    }
+
+    return implode("\n", $options);
 }
 
 function spam_preventer_default_blocked_phrases()

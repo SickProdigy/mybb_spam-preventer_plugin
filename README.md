@@ -15,7 +15,8 @@ A configurable MyBB 1.8 plugin that limits common spam behavior for new and low-
 - Records optional rule-hit logs for administrator review.
 - Provides a permission-controlled, filterable Spam Preventer log viewer under Tools & Maintenance.
 - Optionally detects rapid new-thread bursts and starts a temporary cooldown.
-- Supports user, usergroup, and forum exemptions.
+- Shows named usergroup exemption checkboxes with group IDs and applies them to primary or additional memberships.
+- Supports user and forum exemptions.
 - Always exempts administrators and forum moderators.
 - Validates through MyBB's server-side post data handler, so direct requests cannot bypass the rules.
 - Preserves the submitted post and displays a clear validation error when content is rejected.
@@ -35,6 +36,10 @@ Upload/jscripts/spam-preventer/quick-reply-errors.js -> public_html/jscripts/spa
 ```
 
 Then install and activate **Spam Preventer** under **Admin CP → Configuration → Plugins**.
+
+When updating an existing installation, replace the files and deactivate then
+reactivate the plugin without uninstalling it. Activation refreshes the setting
+definitions while preserving existing values and logs.
 
 ## Configuration
 
@@ -134,7 +139,9 @@ Set **Ban Action: Target Usergroup ID** to the usergroup used when a rule action
 
 ### Exemptions
 
-Usergroup IDs, user IDs, and forum IDs accept comma-separated values. Administrators and moderators of the current forum are exempt automatically. A future release may add named VIP and donor bypass controls; those groups can be entered in **Exempt Usergroup IDs** now.
+**Exempt Usergroups** lists every current MyBB group as a checkbox with its name and ID. Selected groups bypass all rules whether they are the member's primary group or an additional group. This lets VIP, donor, booster, trusted, or other approved roles override a restricted New-Member primary group.
+
+User IDs and forum IDs continue to accept comma-separated values. Administrators and moderators of the current forum are exempt automatically.
 
 ## Relationship to MyBB Controls
 
