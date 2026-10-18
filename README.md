@@ -17,6 +17,7 @@ A configurable MyBB 1.8 plugin that limits common spam behavior for new and low-
 - Optionally detects rapid new-thread bursts and starts a temporary cooldown.
 - Shows named usergroup exemption checkboxes with group IDs and applies them to primary or additional memberships.
 - Supports user and forum exemptions.
+- Adds optional per-group and per-user attachment size, rolling-byte, count, and extension policies.
 - Always exempts administrators and forum moderators.
 - Validates through MyBB's server-side post data handler, so direct requests cannot bypass the rules.
 - Preserves the submitted post and displays a clear validation error when content is rejected.
@@ -40,6 +41,10 @@ Then install and activate **Spam Preventer** under **Admin CP → Configuration 
 When updating an existing installation, replace the files and deactivate then
 reactivate the plugin without uninstalling it. Activation refreshes the setting
 definitions while preserving existing values and logs.
+
+Thread-post warning notices are now provided by the separate **Staff Tools**
+plugin. Reactivating Spam Preventer removes its retired warning-notice setting
+and template; it does not remove or alter any MyBB warning records.
 
 ## Configuration
 
@@ -83,6 +88,41 @@ To use the same approach on your board:
 - Use MyBB group promotions to move established users into a regular member group with the intended attachment permissions. SickGaming uses the 25-post and three-day requirements described above.
 
 MyBB manages attachment permissions and group promotions separately from Spam Preventer. Meeting the plugin's thresholds or receiving a Spam Preventer group exemption does not itself remove attachment moderation; check the destination group's permissions and any additional groups too.
+
+### Attachment Abuse Policies
+
+Enable **Attachment Abuse: Enable Group Policies** to add limits beyond MyBB's
+global attachment-type maximums and total group quota. Policies use one line per
+group:
+
+```text
+group_id|max_file_kb|max_24h_kb|max_24h_files|extensions
+```
+
+Example:
+
+```text
+2|2048|4096|5|jpg,jpeg,png,gif,zip,pdf,txt
+8|5120|51200|20|*
+11|1048576|1048576|10|*
+```
+
+A numeric `0` means unlimited. An extension value of `*` allows every type that
+MyBB already enables globally; the plugin never enables a globally disabled
+type. When several primary or additional groups match, the last matching line
+wins. Put trusted or VIP policies after the restricted New-Member policy.
+Optional user overrides use the same format with a user ID in the first column
+and replace the effective group policy.
+
+The rolling 24-hour counters use a separate upload ledger. Deleting an
+attachment does not restore that day's allowance. Ledger entries older than
+seven days are pruned during successful uploads. Blocked attempts may appear in
+the existing Spam Preventer log, but file contents are never recorded.
+
+MyBB still enforces its total attachment quota and global per-extension maximum.
+PHP, web-server, and proxy request limits may prevent very large uploads before
+MyBB or this plugin receives them. Allowing a 1 GB policy therefore also
+requires compatible infrastructure limits and careful timeout/storage testing.
 
 ### Rule Actions
 

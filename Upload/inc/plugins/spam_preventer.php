@@ -14,6 +14,8 @@ if (!defined('IN_MYBB')) {
 
 $plugins->add_hook('datahandler_post_validate_post', 'spam_preventer_validate');
 $plugins->add_hook('datahandler_post_validate_thread', 'spam_preventer_validate');
+$plugins->add_hook('upload_attachment_start', 'spam_preventer_attachment_upload_start');
+$plugins->add_hook('upload_attachment_do_insert', 'spam_preventer_attachment_record_upload');
 $plugins->add_hook('pre_output_page', 'spam_preventer_add_quick_reply_asset');
 $plugins->add_hook('admin_tools_action_handler', 'spam_preventer_admin_tools_action_handler');
 $plugins->add_hook('admin_tools_menu_logs', 'spam_preventer_admin_tools_menu_logs');
@@ -27,7 +29,7 @@ function spam_preventer_info()
         'website' => 'https://github.com/sickprodigy/mybb_spam-preventer_plugin',
         'author' => 'SickProdigy',
         'authorsite' => 'https://www.sickgaming.net',
-        'version' => '1.1.2',
+        'version' => '1.1.3',
         'compatibility' => '18*'
     );
 }
@@ -79,7 +81,20 @@ function spam_preventer_is_installed()
 function spam_preventer_activate()
 {
     spam_preventer_ensure_settings();
+    spam_preventer_remove_retired_warning_notice();
     spam_preventer_ensure_tables();
+}
+
+function spam_preventer_remove_retired_warning_notice()
+{
+    global $db;
+
+    $query = $db->simple_select('settings', 'sid', "name='spam_preventer_post_warning_notice'", array('limit' => 1));
+    if ($sid = (int)$db->fetch_field($query, 'sid')) {
+        $db->delete_query('settings', "sid='{$sid}'");
+        rebuild_settings();
+    }
+    $db->delete_query('templates', "title='spam_preventer_post_warning'");
 }
 
 function spam_preventer_deactivate()
@@ -102,6 +117,9 @@ function spam_preventer_uninstall()
     }
     if ($db->table_exists('spam_preventer_cooldowns')) {
         $db->drop_table('spam_preventer_cooldowns');
+    }
+    if ($db->table_exists('spam_preventer_uploads')) {
+        $db->drop_table('spam_preventer_uploads');
     }
 
     rebuild_settings();
@@ -141,6 +159,19 @@ function spam_preventer_ensure_tables()
             reason varchar(40) NOT NULL default 'rapid_threads',
             PRIMARY KEY (cid),
             KEY uid_expires (uid, expires)
+        ) ENGINE=MyISAM{$collation};");
+    }
+
+    if (!$db->table_exists('spam_preventer_uploads')) {
+        $db->write_query("CREATE TABLE " . TABLE_PREFIX . "spam_preventer_uploads (
+            upid int unsigned NOT NULL auto_increment,
+            uid int unsigned NOT NULL default 0,
+            filesize bigint unsigned NOT NULL default 0,
+            extension varchar(20) NOT NULL default '',
+            dateline int unsigned NOT NULL default 0,
+            PRIMARY KEY (upid),
+            KEY uid_dateline (uid, dateline),
+            KEY dateline (dateline)
         ) ENGINE=MyISAM{$collation};");
     }
 }
@@ -200,6 +231,10 @@ function spam_preventer_settings($gid)
         spam_preventer_setting('rapid_thread_cooldown', 'Rapid Threads: Cooldown Hours', 'Temporary restriction duration after the limit is exceeded.', 'numeric', '12', 540, $gid),
         spam_preventer_setting('rapid_thread_scope', 'Rapid Threads: Cooldown Scope', 'Choose whether cooldown blocks only new threads or all posts.', "select\nthreads=New threads only\nall=All posts and threads", 'threads', 550, $gid),
         spam_preventer_setting('ban_group', 'Ban Action: Target Usergroup ID', 'Usergroup assigned when a rule action is set to Ban user. MyBB Banned is usually group 7.', 'numeric', '7', 610, $gid),
+        spam_preventer_setting('attachment_limits', 'Attachment Abuse: Enable Group Policies', 'Apply the configured per-group and per-user attachment limits before MyBB stores a file. MyBB total quotas and attachment-type limits still apply.', 'yesno', '0', 650, $gid),
+        spam_preventer_setting('attachment_group_policies', 'Attachment Abuse: Group Policies', 'One policy per line: group_id|max_file_kb|max_24h_kb|max_24h_files|extensions. Use 0 for an unlimited numeric value and * for all globally enabled extensions. The last matching primary or additional group policy wins.', 'textarea', "# group_id|max_file_kb|max_24h_kb|max_24h_files|extensions
+2|2048|4096|5|jpg,jpeg,png,gif,zip,pdf,txt", 660, $gid),
+        spam_preventer_setting('attachment_user_policies', 'Attachment Abuse: User Overrides', 'Optional per-user overrides using: user_id|max_file_kb|max_24h_kb|max_24h_files|extensions. The last matching user line replaces the effective group policy.', 'textarea', '', 670, $gid),
         spam_preventer_setting('exempt_groups', 'Exemptions: Exempt Usergroups', 'Select any primary or additional usergroups that bypass all rules. Each option shows the group name and ID. Administrators and forum moderators are always exempt.', spam_preventer_usergroup_options(), '', 710, $gid),
         spam_preventer_setting('exempt_users', 'Exemptions: Exempt User IDs', 'Comma-separated user IDs that bypass all rules.', 'text', '', 720, $gid),
         spam_preventer_setting('exempt_forums', 'Exemptions: Exempt Forum IDs', 'Comma-separated forum IDs where the rules do not apply.', 'text', '', 730, $gid)
@@ -247,6 +282,209 @@ function spam_preventer_group_options_code($groups)
     }
 
     return implode("\n", $options);
+}
+
+function spam_preventer_attachment_upload_start($attachment)
+{
+    global $db, $forum, $lang, $mybb;
+
+    if (empty($mybb->settings['spam_preventer_attachment_limits'])
+        || empty($mybb->user['uid'])
+        || !is_array($attachment)) {
+        return $attachment;
+    }
+
+    $policy = spam_preventer_effective_attachment_policy(
+        $mybb->user,
+        isset($mybb->settings['spam_preventer_attachment_group_policies']) ? $mybb->settings['spam_preventer_attachment_group_policies'] : '',
+        isset($mybb->settings['spam_preventer_attachment_user_policies']) ? $mybb->settings['spam_preventer_attachment_user_policies'] : ''
+    );
+    if (!$policy) {
+        return $attachment;
+    }
+
+    $usage = array('bytes' => 0, 'count' => 0);
+    if (($policy['daily_kb'] > 0 || $policy['daily_count'] > 0)
+        && isset($db)
+        && method_exists($db, 'table_exists')
+        && $db->table_exists('spam_preventer_uploads')) {
+        $uid = (int)$mybb->user['uid'];
+        $cutoff = TIME_NOW - 86400;
+        $query = $db->simple_select(
+            'spam_preventer_uploads',
+            'COUNT(upid) AS upload_count, SUM(filesize) AS upload_bytes',
+            "uid='{$uid}' AND dateline>='{$cutoff}'"
+        );
+        $row = $db->fetch_array($query);
+        $usage['bytes'] = isset($row['upload_bytes']) ? (int)$row['upload_bytes'] : 0;
+        $usage['count'] = isset($row['upload_count']) ? (int)$row['upload_count'] : 0;
+    }
+
+    $violation = spam_preventer_attachment_violation($attachment, $policy, $usage);
+    if (!$violation) {
+        return $attachment;
+    }
+
+    $lang->load('spam_preventer');
+    $reason = spam_preventer_attachment_violation_text($violation);
+    spam_preventer_log_hit('attachment_policy', 'reject', array(
+        'fid' => isset($forum['fid']) ? (int)$forum['fid'] : 0,
+        'subject' => 'Attachment upload blocked',
+        'message' => $reason
+    ));
+
+    $lang->error_attachtype = $lang->sprintf($lang->spam_preventer_attachment_policy, $reason);
+    $attachment['name'] = 'blocked.__spam_preventer_denied__';
+
+    return $attachment;
+}
+
+function spam_preventer_attachment_record_upload($attacharray)
+{
+    global $db, $mybb;
+
+    if (empty($mybb->settings['spam_preventer_attachment_limits'])
+        || empty($mybb->user['uid'])
+        || !is_array($attacharray)
+        || !isset($db)
+        || !method_exists($db, 'table_exists')
+        || !$db->table_exists('spam_preventer_uploads')) {
+        return $attacharray;
+    }
+
+    $policy = spam_preventer_effective_attachment_policy(
+        $mybb->user,
+        isset($mybb->settings['spam_preventer_attachment_group_policies']) ? $mybb->settings['spam_preventer_attachment_group_policies'] : '',
+        isset($mybb->settings['spam_preventer_attachment_user_policies']) ? $mybb->settings['spam_preventer_attachment_user_policies'] : ''
+    );
+    if (!$policy) {
+        return $attacharray;
+    }
+
+    $filename = isset($attacharray['filename']) ? $attacharray['filename'] : '';
+    $db->insert_query('spam_preventer_uploads', array(
+        'uid' => (int)$mybb->user['uid'],
+        'filesize' => isset($attacharray['filesize']) ? max(0, (int)$attacharray['filesize']) : 0,
+        'extension' => $db->escape_string(strtolower(get_extension($filename))),
+        'dateline' => TIME_NOW
+    ));
+
+    $cutoff = TIME_NOW - (7 * 86400);
+    $db->delete_query('spam_preventer_uploads', "dateline<'{$cutoff}'");
+
+    return $attacharray;
+}
+
+function spam_preventer_parse_attachment_policies($text)
+{
+    $policies = array();
+
+    foreach (preg_split('~\r?\n~', (string)$text) as $line) {
+        $line = trim($line);
+        if ($line === '' || strpos($line, '#') === 0) {
+            continue;
+        }
+
+        $parts = array_map('trim', explode('|', $line, 5));
+        if (count($parts) !== 5 || !ctype_digit($parts[0]) || (int)$parts[0] < 1) {
+            continue;
+        }
+
+        $extensions = array();
+        if ($parts[4] === '*') {
+            $extensions = array('*');
+        } else {
+            foreach (preg_split('~[\s,]+~', strtolower($parts[4]), -1, PREG_SPLIT_NO_EMPTY) as $extension) {
+                $extension = ltrim($extension, '.');
+                if (preg_match('~^[a-z0-9]+$~', $extension)) {
+                    $extensions[] = $extension;
+                }
+            }
+            $extensions = array_values(array_unique($extensions));
+        }
+
+        $policies[] = array(
+            'id' => (int)$parts[0],
+            'max_file_kb' => max(0, (int)$parts[1]),
+            'daily_kb' => max(0, (int)$parts[2]),
+            'daily_count' => max(0, (int)$parts[3]),
+            'extensions' => $extensions
+        );
+    }
+
+    return $policies;
+}
+
+function spam_preventer_effective_attachment_policy($user, $group_text, $user_text)
+{
+    $primary_group = isset($user['usergroup']) ? (int)$user['usergroup'] : 0;
+    $groups = array_merge(
+        array($primary_group),
+        spam_preventer_id_list(isset($user['additionalgroups']) ? $user['additionalgroups'] : '')
+    );
+    $groups = array_values(array_unique(array_filter($groups)));
+    $effective = array();
+
+    foreach (spam_preventer_parse_attachment_policies($group_text) as $policy) {
+        if (in_array($policy['id'], $groups, true)) {
+            $effective = $policy;
+        }
+    }
+
+    $uid = isset($user['uid']) ? (int)$user['uid'] : 0;
+    foreach (spam_preventer_parse_attachment_policies($user_text) as $policy) {
+        if ($policy['id'] === $uid) {
+            $effective = $policy;
+        }
+    }
+
+    return $effective;
+}
+
+function spam_preventer_attachment_violation($attachment, $policy, $usage)
+{
+    $filename = isset($attachment['name']) ? $attachment['name'] : '';
+    $extension = strtolower(get_extension($filename));
+    $size = isset($attachment['size']) ? max(0, (int)$attachment['size']) : 0;
+    $extensions = isset($policy['extensions']) ? $policy['extensions'] : array();
+
+    if (!in_array('*', $extensions, true) && !in_array($extension, $extensions, true)) {
+        return array('code' => 'extension', 'extension' => $extension);
+    }
+    if (!empty($policy['max_file_kb']) && $size > ((int)$policy['max_file_kb'] * 1024)) {
+        return array('code' => 'file_size', 'limit_kb' => (int)$policy['max_file_kb']);
+    }
+    if (!empty($policy['daily_count']) && (int)$usage['count'] >= (int)$policy['daily_count']) {
+        return array('code' => 'daily_count', 'limit' => (int)$policy['daily_count']);
+    }
+    if (!empty($policy['daily_kb'])
+        && ((int)$usage['bytes'] + $size) > ((int)$policy['daily_kb'] * 1024)) {
+        return array('code' => 'daily_bytes', 'limit_kb' => (int)$policy['daily_kb']);
+    }
+
+    return array();
+}
+
+function spam_preventer_attachment_violation_text($violation)
+{
+    global $lang;
+
+    $code = isset($violation['code']) ? $violation['code'] : '';
+    if ($code === 'extension') {
+        $extension = !empty($violation['extension']) ? '.' . $violation['extension'] : 'unknown';
+        return $lang->sprintf($lang->spam_preventer_attachment_extension, $extension);
+    }
+    if ($code === 'file_size') {
+        return $lang->sprintf($lang->spam_preventer_attachment_file_size, get_friendly_size((int)$violation['limit_kb'] * 1024));
+    }
+    if ($code === 'daily_count') {
+        return $lang->sprintf($lang->spam_preventer_attachment_daily_count, (int)$violation['limit']);
+    }
+    if ($code === 'daily_bytes') {
+        return $lang->sprintf($lang->spam_preventer_attachment_daily_bytes, get_friendly_size((int)$violation['limit_kb'] * 1024));
+    }
+
+    return $lang->spam_preventer_attachment_unknown;
 }
 
 function spam_preventer_default_blocked_phrases()

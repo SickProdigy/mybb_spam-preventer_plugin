@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.3 - 2026-10-18
+
+- Add optional per-group attachment size, rolling 24-hour bytes/count, and extension policies.
+- Support last-match precedence across primary and additional groups plus per-user overrides.
+- Track successful uploads in a separate ledger so deleting attachments does not reset rolling limits.
+- Reject policy violations before permanent storage and record blocked attempts without file contents.
+- Preserve MyBB's global attachment-type limits and total usergroup quotas.
+- Retire the thread-post warning notice now owned by Staff Tools and remove the obsolete setting and template during activation.
+
 ## 1.1.2 - 2026-10-03
 
 - Replace the exempt-usergroup ID text field with named usergroup checkboxes that show each group ID.

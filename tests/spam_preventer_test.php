@@ -32,6 +32,12 @@ function is_moderator($fid, $permission = '', $uid = 0)
     return $uid === 9;
 }
 
+function get_extension($filename)
+{
+    $parts = explode('.', (string)$filename);
+    return count($parts) > 1 ? strtolower(end($parts)) : '';
+}
+
 $plugins = new SpamPreventerTestPlugins();
 require dirname(__DIR__) . '/Upload/inc/plugins/spam_preventer.php';
 
@@ -126,6 +132,88 @@ spam_preventer_test_assert(
         array('gid' => 8, 'title' => '<b>VIP=Gold</b>')
     )) === "checkbox\n2=New-Member (ID 2)\n8=VIP-Gold (ID 8)",
     'usergroup checkbox options should show safe names and IDs'
+);
+
+$attachment_policies = spam_preventer_parse_attachment_policies(
+    "# group|max file|daily bytes|daily count|extensions\n"
+    . "2|2048|4096|5|jpg,png,zip\n"
+    . "11|1048576|1048576|10|*"
+);
+spam_preventer_test_assert(
+    count($attachment_policies) === 2
+        && $attachment_policies[0]['extensions'] === array('jpg', 'png', 'zip')
+        && $attachment_policies[1]['max_file_kb'] === 1048576,
+    'attachment policies should parse limits and extension lists'
+);
+$attachment_policy_user = array(
+    'uid' => 25,
+    'usergroup' => 2,
+    'additionalgroups' => '11'
+);
+$effective_attachment_policy = spam_preventer_effective_attachment_policy(
+    $attachment_policy_user,
+    "2|2048|4096|5|jpg,png\n11|1048576|1048576|10|*",
+    ''
+);
+spam_preventer_test_assert(
+    $effective_attachment_policy['id'] === 11,
+    'the last matching additional-group policy should override the primary group'
+);
+$effective_attachment_policy = spam_preventer_effective_attachment_policy(
+    $attachment_policy_user,
+    "2|2048|4096|5|jpg,png\n11|1048576|1048576|10|*",
+    "25|1024|2048|2|jpg"
+);
+spam_preventer_test_assert(
+    $effective_attachment_policy['id'] === 25
+        && $effective_attachment_policy['max_file_kb'] === 1024,
+    'a matching user policy should override group policies'
+);
+$test_policy = array(
+    'max_file_kb' => 2048,
+    'daily_kb' => 4096,
+    'daily_count' => 5,
+    'extensions' => array('jpg', 'zip')
+);
+spam_preventer_test_assert(
+    spam_preventer_attachment_violation(
+        array('name' => 'payload.php', 'size' => 100),
+        $test_policy,
+        array('bytes' => 0, 'count' => 0)
+    )['code'] === 'extension',
+    'disallowed attachment extensions should be rejected'
+);
+spam_preventer_test_assert(
+    spam_preventer_attachment_violation(
+        array('name' => 'large.zip', 'size' => (2048 * 1024) + 1),
+        $test_policy,
+        array('bytes' => 0, 'count' => 0)
+    )['code'] === 'file_size',
+    'attachments above the per-file policy should be rejected'
+);
+spam_preventer_test_assert(
+    spam_preventer_attachment_violation(
+        array('name' => 'fifth.jpg', 'size' => 100),
+        $test_policy,
+        array('bytes' => 0, 'count' => 5)
+    )['code'] === 'daily_count',
+    'the rolling attachment-count policy should be enforced'
+);
+spam_preventer_test_assert(
+    spam_preventer_attachment_violation(
+        array('name' => 'quota.jpg', 'size' => 1024),
+        $test_policy,
+        array('bytes' => 4096 * 1024, 'count' => 1)
+    )['code'] === 'daily_bytes',
+    'the rolling uploaded-byte policy should be enforced'
+);
+spam_preventer_test_assert(
+    spam_preventer_attachment_violation(
+        array('name' => 'allowed.jpg', 'size' => 1024),
+        $test_policy,
+        array('bytes' => 1024, 'count' => 1)
+    ) === array(),
+    'attachments within every policy limit should be allowed'
 );
 spam_preventer_test_assert(
     !spam_preventer_has_original_reply_content("[quote='User' pid='123']Quoted post[/quote]"),
@@ -325,8 +413,13 @@ $plugin_source = file_get_contents(dirname(__DIR__) . '/Upload/inc/plugins/spam_
 $admin_source = file_get_contents(dirname(__DIR__) . '/Upload/admin/modules/tools/spam_preventer_logs.php');
 $admin_language = file_get_contents(dirname(__DIR__) . '/Upload/inc/languages/english/admin/spam_preventer.lang.php');
 spam_preventer_test_assert(
-    strpos($plugin_source, "'version' => '1.1.2'") !== false,
-    'plugin metadata should report version 1.1.2'
+    strpos($plugin_source, "'version' => '1.1.3'") !== false,
+    'plugin metadata should report version 1.1.3'
+);
+spam_preventer_test_assert(
+    strpos($plugin_source, "upload_attachment_start") !== false
+        && strpos($plugin_source, "spam_preventer_uploads") !== false,
+    'attachment policies should use the pre-storage upload hook and persistent rolling ledger'
 );
 spam_preventer_test_assert(
     strpos($plugin_source, "admin_tools_menu_logs") !== false
