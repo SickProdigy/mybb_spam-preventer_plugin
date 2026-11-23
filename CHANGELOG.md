@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.4 - 2026-11-23
+
+- Document the native group/default AdminCP grants, exact permission labels, and individual-override troubleshooting while preserving existing access restrictions.
+
 ## 1.1.3 - 2026-10-18
 
 - Add optional per-group attachment size, rolling 24-hour bytes/count, and extension policies.

@@ -29,7 +29,7 @@ function spam_preventer_info()
         'website' => 'https://github.com/sickprodigy/mybb_spam-preventer_plugin',
         'author' => 'SickProdigy',
         'authorsite' => 'https://www.sickgaming.net',
-        'version' => '1.1.3',
+        'version' => '1.1.4',
         'compatibility' => '18*'
     );
 }

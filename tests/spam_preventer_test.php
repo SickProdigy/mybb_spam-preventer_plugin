@@ -413,8 +413,8 @@ $plugin_source = file_get_contents(dirname(__DIR__) . '/Upload/inc/plugins/spam_
 $admin_source = file_get_contents(dirname(__DIR__) . '/Upload/admin/modules/tools/spam_preventer_logs.php');
 $admin_language = file_get_contents(dirname(__DIR__) . '/Upload/inc/languages/english/admin/spam_preventer.lang.php');
 spam_preventer_test_assert(
-    strpos($plugin_source, "'version' => '1.1.3'") !== false,
-    'plugin metadata should report version 1.1.3'
+    strpos($plugin_source, "'version' => '1.1.4'") !== false,
+    'plugin metadata should report version 1.1.4'
 );
 spam_preventer_test_assert(
     strpos($plugin_source, "upload_attachment_start") !== false

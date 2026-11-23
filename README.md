@@ -2,6 +2,47 @@
 
 A configurable MyBB 1.8 plugin that limits common spam behavior for new and low-trust members without restricting established members.
 
+## AdminCP permission setup
+
+Use an account allowed to edit administrator permissions, then open
+**AdminCP > Users & Groups > Admin Permissions > Group Permissions**. Edit the
+administrator group that should manage this plugin, enable the permission below,
+and save. Granting it once to the group avoids configuring every administrator
+separately. Custom administrator groups work too; group ID 4 is not required.
+
+| Permission section | Enable |
+| --- | --- |
+| **Tools & Maintenance** | Can view and prune Spam Preventer logs? |
+
+The management page is **AdminCP > Tools & Maintenance > Logs > Spam Preventer Logs**.
+The plugin's ordinary **Configuration > Settings** page separately requires
+MyBB's **Can manage settings?** permission; the permission above controls its
+dedicated management/maintenance page.
+
+For administrators intended to share a baseline, **Default Permissions** is also
+available on the same Admin Permissions screen. Check whether the group uses
+that baseline or has its own custom permission set before editing it.
+
+If the owner has access but another administrator does not:
+
+1. Open **Admin Permissions > User Permissions** and inspect that account. A
+   custom user permission set takes precedence over group/default permissions;
+   changing a group does not override it. Update the user's custom set, or remove
+   that custom set through MyBB's permission screen if the account should inherit.
+2. Check the actual primary/additional group memberships that grant AdminCP
+   access, rather than the displayed group title, and review the relevant group
+   permission set and any default it inherits.
+3. Save the intended grant and have that administrator reopen the management
+   page. Super administrators bypass these checks, so owner access alone does
+   not verify another account's permissions.
+
+These steps apply to fresh and existing installations. Plugin upgrades preserve
+saved grants and restrictions; they do not automatically enable administrator
+permissions. No reinstall, database edit, or new super administrator is needed.
+Members and moderators without AdminCP access cannot use these pages. Plugin
+permissions are checked by MyBB before page dispatch, including direct requests
+and POST actions; normal AdminCP login and CSRF checks still apply.
+
 ## Features
 
 - Applies only to configured restricted usergroups; MyBB group ID `2` is selected by default.
